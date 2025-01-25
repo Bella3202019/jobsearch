@@ -260,6 +260,49 @@ const mockJobs = [
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const query = searchParams.get('query') || '';
+  const location = searchParams.get('location') || '';
+  const company = searchParams.get('company') || '';
+  const diversity = searchParams.get('diversity') || '';
+
+  let results = mockJobs;
+
+  if (query) {
+    const searchQuery = query.toLowerCase();
+    results = results.filter(job =>
+      job.title.toLowerCase().includes(searchQuery) ||
+      job.description.toLowerCase().includes(searchQuery)
+    );
+  }
+
+  if (location) {
+    results = results.filter(job =>
+      job.location.toLowerCase().includes(location.toLowerCase())
+    );
+  }
+
+  if (company) {
+    results = results.filter(job =>
+      job.company.toLowerCase().includes(company.toLowerCase())
+    );
+  }
+
+  if (diversity) {
+    results = results.filter(job =>
+      job.diversity_types.some(type => 
+        type.toLowerCase().includes(diversity.toLowerCase())
+      )
+    );
+  }
+
+  return NextResponse.json({
+    total: results.length,
+    jobs: results
+  });
+}
+
+export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url);
   const toolCallId = searchParams.get('tool_call_id');
   const query = searchParams.get('query') || '';
   const location = searchParams.get('location') || '';
