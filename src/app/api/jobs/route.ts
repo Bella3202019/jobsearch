@@ -384,12 +384,18 @@ export async function POST(request: Request) {
       ]
     });
 
-  } catch (error) {
+  } catch (error: unknown) {  // 明确指定 error 类型
     console.error('Error processing request:', error);
+    
+    // 安全地处理错误消息
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Unknown error occurred';
+
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        details: error.message 
+        details: errorMessage 
       },
       { status: 500 }
     );
