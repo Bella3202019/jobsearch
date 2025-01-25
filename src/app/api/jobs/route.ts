@@ -324,7 +324,11 @@ export async function POST(request: Request) {
     if (body?.message?.tool_calls?.[0]) {
       toolCall = body.message.tool_calls[0];
     }
-    // 2. 从 artifact.messages 获取最后一个 tool_calls
+    // 2. 从 message.tool_with_tool_call_list 获取
+    else if (body?.message?.tool_with_tool_call_list?.[0]?.tool_call) {
+      toolCall = body.message.tool_with_tool_call_list[0].tool_call;
+    }
+    // 3. 从 artifact.messages 获取最后一个 tool_calls
     else if (body?.message?.artifact?.messages) {
       const messages = body.message.artifact.messages;
       for (let i = messages.length - 1; i >= 0; i--) {
@@ -387,7 +391,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 只返回前 3 个结果
+    // 只取前3个结果
     const limitedResults = results.slice(0, 3);
 
     return NextResponse.json({
@@ -395,8 +399,8 @@ export async function POST(request: Request) {
         {
           toolCallId: toolCallId,
           result: JSON.stringify({
-            total: results.length, // 保持总数不变
-            jobs: limitedResults  // 只返回前 3 个
+            total: results.length,
+            jobs: limitedResults
           })
         }
       ]
