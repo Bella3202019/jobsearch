@@ -260,6 +260,7 @@ const mockJobs = [
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const toolCallId = searchParams.get('tool_call_id');
   const query = searchParams.get('query') || '';
   const location = searchParams.get('location') || '';
   const company = searchParams.get('company') || '';
@@ -296,7 +297,14 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    total: results.length,
-    jobs: results
+    results: [
+      {
+        toolCallId: toolCallId || "call_123",
+        result: JSON.stringify({
+          total: results.length,
+          jobs: results
+        })
+      }
+    ]
   });
 }

@@ -55,15 +55,23 @@ export default function Home() {
   const handleSearch = async () => {
     setLoading(true);
     const params = new URLSearchParams();
+    params.append('tool_call_id', 'call_123');
     if (query) params.append('query', query);
     if (location) params.append('location', location);
     if (company) params.append('company', company);
     if (diversity) params.append('diversity', diversity);
 
-    const response = await fetch(`/api/jobs?${params.toString()}`);
-    const data = await response.json();
-    setJobs(data.jobs);
-    setLoading(false);
+    try {
+      const response = await fetch(`/api/jobs?${params.toString()}`);
+      const data = await response.json();
+      const searchResult = JSON.parse(data.results[0].result);
+      setJobs(searchResult.jobs);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      setJobs([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 添加处理回车键的函数
