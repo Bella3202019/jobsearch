@@ -317,56 +317,16 @@ export async function POST(request: Request) {
       });
     }
 
-    // 从不同位置尝试获取 tool call
+    // 只从 message.tool_calls 获取
     let toolCall = null;
-    
-    // 1. 直接从 message.tool_calls 获取
     if (Array.isArray(body?.message?.tool_calls) && body.message.tool_calls.length > 0) {
       console.log('Found tool call in message.tool_calls');
       toolCall = body.message.tool_calls[0];
     }
-    // 2. 从 message.tool_call_list 获取
-    else if (Array.isArray(body?.message?.tool_call_list) && body.message.tool_call_list.length > 0) {
-      console.log('Found tool call in message.tool_call_list');
-      toolCall = body.message.tool_call_list[0];
-    }
-    // 3. 从 message.tool_with_tool_call_list 获取
-    else if (Array.isArray(body?.message?.tool_with_tool_call_list) && 
-             body.message.tool_with_tool_call_list.length > 0 && 
-             body.message.tool_with_tool_call_list[0].tool_call) {
-      console.log('Found tool call in message.tool_with_tool_call_list');
-      toolCall = body.message.tool_with_tool_call_list[0].tool_call;
-    }
-    // 4. 从 artifact.messages 获取最后一个 tool_calls
-    else if (Array.isArray(body?.message?.artifact?.messages)) {
-      console.log('Searching in artifact.messages');
-      const messages = body.message.artifact.messages;
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (Array.isArray(messages[i].tool_calls) && messages[i].tool_calls.length > 0) {
-          console.log('Found tool call in artifact.messages[' + i + ']');
-          toolCall = messages[i].tool_calls[0];
-          break;
-        }
-      }
-    }
 
     if (!toolCall) {
-      console.log('Body structure:', JSON.stringify({
-        has_message: !!body?.message,
-        message_type: body?.message?.type,
-        has_tool_calls: Array.isArray(body?.message?.tool_calls),
-        tool_calls_length: body?.message?.tool_calls?.length,
-        has_tool_call_list: Array.isArray(body?.message?.tool_call_list),
-        tool_call_list_length: body?.message?.tool_call_list?.length,
-        has_tool_with_tool_call_list: Array.isArray(body?.message?.tool_with_tool_call_list),
-        tool_with_tool_call_list_length: body?.message?.tool_with_tool_call_list?.length,
-        has_artifact: !!body?.message?.artifact,
-        has_artifact_messages: Array.isArray(body?.message?.artifact?.messages),
-        artifact_messages_length: body?.message?.artifact?.messages?.length
-      }, null, 2));
-      
-      console.error('Tool call not found in body');
-      throw new Error('No tool call found');
+      console.error('Tool call not found in message.tool_calls');
+      throw new Error('No tool call found in message.tool_calls');
     }
 
     console.log('Using tool call:', toolCall);
@@ -377,7 +337,8 @@ export async function POST(request: Request) {
     let params;
     try {
       const args = toolCall.function.arguments;
-      params = typeof args === 'string' ? JSON.parse(args) : args;
+      // 如果 args 已经是对象，直接使用
+      params = typeof args === 'object' ? args : JSON.parse(args);
       console.log('Parsed parameters:', params);
     } catch (e) {
       console.error('Error parsing arguments:', e);
