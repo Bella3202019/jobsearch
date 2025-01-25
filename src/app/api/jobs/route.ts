@@ -304,37 +304,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const message = body.message;
     
-    // 检查消息类型
-    const messageType = body?.message?.type;
-    
-    // 处理状态更新和通话结束报告
-    if (messageType === 'status-update' || messageType === 'end-of-call-report') {
-      return NextResponse.json({
-        status: 'ok',
-        message: `${messageType} received`
-      });
-    }
-    
-    // 处理工作搜索请求
-    const toolCall = body?.message?.tool_calls?.[0];
+    const toolCall = message?.tool_calls?.[0];
     if (!toolCall) {
-      console.error('Tool call not found in body:', body);
       throw new Error('No tool call found');
     }
 
     const toolCallId = toolCall.id;
     
-    // 直接获取 arguments 对象，不需要 JSON.parse
-    const args = toolCall.function.arguments;
-    
-    // 如果 arguments 是字符串，则需要解析
-    const params = typeof args === 'string' ? JSON.parse(args) : args;
-    
-    const query = params.query || '';
-    const location = params.location || '';
-    const company = params.company || '';
-    const diversity = params.diversity || '';
+    const args = JSON.parse(toolCall.function.arguments);
+    const query = args.query || '';
+    const location = args.location || '';
+    const company = args.company || '';
+    const diversity = args.diversity || '';
 
     let results = mockJobs;
 
@@ -366,47 +349,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // 只取前3个结果
+    // 只返回前 3 个结果
     const limitedResults = results.slice(0, 3);
-
-    // 将结果转换为自然语言
-    let naturalResponse = `I found ${results.length} matching positions. Here are the details:\n\n`;
-
-    limitedResults.forEach((job, index) => {
-      naturalResponse += `${index + 1}. At ${job.company}, there's an opening for a ${job.title} position in ${job.location}. ` +
-        `This role involves ${job.description} The salary range is ${job.salary}. ` +
-        `The company offers a ${job.company_culture} and benefits include ${job.benefits.join(', ')}. ` +
-        `They actively support diversity initiatives for ${job.diversity_types.join(', ')}.\n\n`;
-    });
-
-    if (results.length > 3) {
-      naturalResponse += `There are ${results.length - 3} more positions available. Would you like to know more about any specific position?`;
-    }
 
     return NextResponse.json({
       results: [
         {
           toolCallId: toolCallId,
           result: JSON.stringify({
-            total: results.length,
-            response: naturalResponse
+            total: results.length, // 保持总数不变
+            jobs: limitedResults  // 只返回前 3 个
           })
         }
       ]
     });
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error processing request:', error);
-    
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : 'Unknown error occurred';
-
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: errorMessage 
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
