@@ -305,7 +305,18 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // 从 message.tool_calls 中获取第一个调用
+    // 检查消息类型
+    const messageType = body?.message?.type;
+    
+    // 处理状态更新和通话结束报告
+    if (messageType === 'status-update' || messageType === 'end-of-call-report') {
+      return NextResponse.json({
+        status: 'ok',
+        message: `${messageType} received`
+      });
+    }
+    
+    // 处理工作搜索请求
     const toolCall = body?.message?.tool_calls?.[0];
     if (!toolCall) {
       console.error('Tool call not found in body:', body);
@@ -384,10 +395,9 @@ export async function POST(request: Request) {
       ]
     });
 
-  } catch (error: unknown) {  // 明确指定 error 类型
+  } catch (error: unknown) {
     console.error('Error processing request:', error);
     
-    // 安全地处理错误消息
     const errorMessage = error instanceof Error 
       ? error.message 
       : 'Unknown error occurred';
