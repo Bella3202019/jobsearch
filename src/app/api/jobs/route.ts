@@ -304,20 +304,26 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const message = body.message;
     
-    const toolCall = message?.tool_calls?.[0];
+    // 从 message.tool_calls 中获取第一个调用
+    const toolCall = body?.message?.tool_calls?.[0];
     if (!toolCall) {
+      console.error('Tool call not found in body:', body);
       throw new Error('No tool call found');
     }
 
     const toolCallId = toolCall.id;
     
-    const args = JSON.parse(toolCall.function.arguments);
-    const query = args.query || '';
-    const location = args.location || '';
-    const company = args.company || '';
-    const diversity = args.diversity || '';
+    // 直接获取 arguments 对象，不需要 JSON.parse
+    const args = toolCall.function.arguments;
+    
+    // 如果 arguments 是字符串，则需要解析
+    const params = typeof args === 'string' ? JSON.parse(args) : args;
+    
+    const query = params.query || '';
+    const location = params.location || '';
+    const company = params.company || '';
+    const diversity = params.diversity || '';
 
     let results = mockJobs;
 
@@ -381,7 +387,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error processing request:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error.message 
+      },
       { status: 500 }
     );
   }
