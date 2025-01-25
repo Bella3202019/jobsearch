@@ -342,40 +342,40 @@ export async function POST(request: Request) {
       console.log('Parsed parameters:', params);
     } catch (e) {
       console.error('Error parsing arguments:', e);
-      params = {};
+      throw new Error('Failed to parse arguments');
     }
 
-    const query = params.query || '';
-    const location = params.location || '';
-    const company = params.company || '';
-    const diversity = params.diversity || '';
+    // 确保至少有 query 参数
+    if (!params.query) {
+      throw new Error('Query parameter is required');
+    }
 
     let results = mockJobs;
 
-    if (query) {
-      const searchQuery = query.toLowerCase();
+    // 使用 query 参数进行搜索（必需）
+    const searchQuery = params.query.toLowerCase();
+    results = results.filter(job =>
+      job.title.toLowerCase().includes(searchQuery) ||
+      job.description.toLowerCase().includes(searchQuery)
+    );
+
+    // 使用其他可选参数进行过滤
+    if (params.location) {
       results = results.filter(job =>
-        job.title.toLowerCase().includes(searchQuery) ||
-        job.description.toLowerCase().includes(searchQuery)
+        job.location.toLowerCase().includes(params.location.toLowerCase())
       );
     }
 
-    if (location) {
+    if (params.company) {
       results = results.filter(job =>
-        job.location.toLowerCase().includes(location.toLowerCase())
+        job.company.toLowerCase().includes(params.company.toLowerCase())
       );
     }
 
-    if (company) {
-      results = results.filter(job =>
-        job.company.toLowerCase().includes(company.toLowerCase())
-      );
-    }
-
-    if (diversity) {
+    if (params.diversity) {
       results = results.filter(job =>
         job.diversity_types.some(type => 
-          type.toLowerCase().includes(diversity.toLowerCase())
+          type.toLowerCase().includes(params.diversity.toLowerCase())
         )
       );
     }
