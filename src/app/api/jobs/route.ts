@@ -304,20 +304,58 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const message = body.message;
+    console.log('Received request body type:', body?.message?.type);
     
-    const toolCall = message?.tool_calls?.[0];
+    // 检查消息类型
+    const messageType = body?.message?.type;
+    
+    // 处理状态更新和通话结束报告
+    if (messageType === 'status-update' || messageType === 'end-of-call-report') {
+      return NextResponse.json({
+        status: 'ok',
+        message: `${messageType} received`
+      });
+    }
+
+    // 从不同位置尝试获取 tool call
+    let toolCall = null;
+    
+    // 1. 直接从 message.tool_calls 获取
+    if (body?.message?.tool_calls?.[0]) {
+      toolCall = body.message.tool_calls[0];
+    }
+    // 2. 从 artifact.messages 获取最后一个 tool_calls
+    else if (body?.message?.artifact?.messages) {
+      const messages = body.message.artifact.messages;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].tool_calls?.[0]) {
+          toolCall = messages[i].tool_calls[0];
+          break;
+        }
+      }
+    }
+
     if (!toolCall) {
+      console.error('Tool call not found in body');
       throw new Error('No tool call found');
     }
 
     const toolCallId = toolCall.id;
     
-    const args = JSON.parse(toolCall.function.arguments);
-    const query = args.query || '';
-    const location = args.location || '';
-    const company = args.company || '';
-    const diversity = args.diversity || '';
+    // 处理 arguments
+    let params;
+    try {
+      const args = toolCall.function.arguments;
+      params = typeof args === 'string' ? JSON.parse(args) : args;
+    } catch (e) {
+      console.error('Error parsing arguments:', e);
+      params = {};
+    }
+
+    const query = params.query || '';
+    const location = params.location || '';
+    const company = params.company || '';
+    const diversity = params.diversity || '';
 
     let results = mockJobs;
 
@@ -364,10 +402,18 @@ export async function POST(request: Request) {
       ]
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error processing request:', error);
+    
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Unknown error occurred';
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: errorMessage 
+      },
       { status: 500 }
     );
   }
