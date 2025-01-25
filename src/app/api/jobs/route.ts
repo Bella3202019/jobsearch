@@ -337,6 +337,18 @@ export async function POST(request: Request) {
       console.log('Found tool call in message.tool_with_tool_call_list');
       toolCall = body.message.tool_with_tool_call_list[0].tool_call;
     }
+    // 4. 从 artifact.messages 获取最后一个 tool_calls
+    else if (body?.message?.artifact?.messages) {
+      console.log('Searching in artifact.messages');
+      const messages = body.message.artifact.messages;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].tool_calls?.[0]) {
+          console.log('Found tool call in artifact.messages[' + i + ']');
+          toolCall = messages[i].tool_calls[0];
+          break;
+        }
+      }
+    }
 
     if (!toolCall) {
       console.log('Body structure:', JSON.stringify({
@@ -346,6 +358,8 @@ export async function POST(request: Request) {
         tool_calls_length: body?.message?.tool_calls?.length,
         has_tool_call_list: !!body?.message?.tool_call_list,
         has_tool_with_tool_call_list: !!body?.message?.tool_with_tool_call_list,
+        has_artifact: !!body?.message?.artifact,
+        has_artifact_messages: !!body?.message?.artifact?.messages,
       }, null, 2));
       
       console.error('Tool call not found in body');
