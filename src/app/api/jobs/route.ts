@@ -337,6 +337,7 @@ export async function POST(request: Request) {
     let params;
     try {
       const args = toolCall.function.arguments;
+      console.log('Raw arguments:', args);
       // 如果 args 已经是对象，直接使用
       params = typeof args === 'object' ? args : JSON.parse(args);
       console.log('Parsed parameters:', params);
@@ -351,6 +352,7 @@ export async function POST(request: Request) {
     }
 
     let results = mockJobs;
+    console.log('Initial results count:', results.length);
 
     // 使用 query 参数进行搜索（必需）
     const searchQuery = params.query.toLowerCase();
@@ -358,30 +360,38 @@ export async function POST(request: Request) {
       job.title.toLowerCase().includes(searchQuery) ||
       job.description.toLowerCase().includes(searchQuery)
     );
+    console.log('Results after query filter:', results.length);
 
     // 使用其他可选参数进行过滤
     if (params.location) {
+      console.log('Filtering by location:', params.location);
       results = results.filter(job =>
         job.location.toLowerCase().includes(params.location.toLowerCase())
       );
+      console.log('Results after location filter:', results.length);
     }
 
     if (params.company) {
+      console.log('Filtering by company:', params.company);
       results = results.filter(job =>
         job.company.toLowerCase().includes(params.company.toLowerCase())
       );
+      console.log('Results after company filter:', results.length);
     }
 
     if (params.diversity) {
+      console.log('Filtering by diversity:', params.diversity);
       results = results.filter(job =>
         job.diversity_types.some(type => 
           type.toLowerCase().includes(params.diversity.toLowerCase())
         )
       );
+      console.log('Results after diversity filter:', results.length);
     }
 
     // 只取前3个结果
     const limitedResults = results.slice(0, 3);
+    console.log('Final limited results:', limitedResults);
 
     return NextResponse.json({
       results: [
