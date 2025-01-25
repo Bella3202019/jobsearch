@@ -286,7 +286,6 @@ a.secondary {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1rem;
-  text-align: left;
 }
 
 .jobHeader h2 {
@@ -302,6 +301,7 @@ a.secondary {
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-weight: 600;
+  text-align: left;
 }
 
 .companyInfo {
@@ -309,7 +309,6 @@ a.secondary {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-  text-align: left;
 }
 
 .companyInfo h3 {
@@ -320,6 +319,7 @@ a.secondary {
 
 .location {
   color: #718096;
+  text-align: left;
 }
 
 .description {
@@ -343,6 +343,7 @@ a.secondary {
   padding: 0.4rem 0.8rem;
   border-radius: 20px;
   font-size: 0.9rem;
+  text-align: left;
 }
 
 .benefits {
@@ -369,6 +370,7 @@ a.secondary {
   padding: 0.4rem 0.8rem;
   border-radius: 20px;
   font-size: 0.9rem;
+  text-align: left;
 }
 
 .loading {

@@ -258,46 +258,45 @@ const mockJobs = [
     }
    ]
 
-export const GET = async (request: Request) => {
- const { searchParams } = new URL(request.url)
- 
- // Get search parameters
- const query = searchParams.get('query')?.toLowerCase() || ''
- const location = searchParams.get('location')?.toLowerCase() || ''
- const company = searchParams.get('company')?.toLowerCase() || ''
- const diversity = searchParams.get('diversity')?.toLowerCase() || ''
- 
- let results = mockJobs
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get('query') || '';
+  const location = searchParams.get('location') || '';
+  const company = searchParams.get('company') || '';
+  const diversity = searchParams.get('diversity') || '';
 
- if (query) {
-   results = results.filter(job => 
-     job.title.toLowerCase().includes(query) ||
-     job.description.toLowerCase().includes(query)
-   )
- }
+  let results = mockJobs;
 
- if (location) {
-   results = results.filter(job => 
-     job.location.toLowerCase().includes(location)
-   )
- }
+  if (query) {
+    const searchQuery = query.toLowerCase();
+    results = results.filter(job =>
+      job.title.toLowerCase().includes(searchQuery) ||
+      job.description.toLowerCase().includes(searchQuery)
+    );
+  }
 
- if (company) {
-   results = results.filter(job => 
-     job.company.toLowerCase().includes(company)
-   )
- }
+  if (location) {
+    results = results.filter(job =>
+      job.location.toLowerCase().includes(location.toLowerCase())
+    );
+  }
 
- if (diversity) {
-   results = results.filter(job =>
-     job.diversity_types.some(type => 
-       type.toLowerCase().includes(diversity)
-     )
-   )
- }
+  if (company) {
+    results = results.filter(job =>
+      job.company.toLowerCase().includes(company.toLowerCase())
+    );
+  }
 
- return NextResponse.json({
-   total: results.length,
-   jobs: results
- })
+  if (diversity) {
+    results = results.filter(job =>
+      job.diversity_types.some(type => 
+        type.toLowerCase().includes(diversity.toLowerCase())
+      )
+    );
+  }
+
+  return NextResponse.json({
+    total: results.length,
+    jobs: results
+  });
 }
