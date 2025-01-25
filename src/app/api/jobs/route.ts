@@ -321,28 +321,38 @@ export async function POST(request: Request) {
     let toolCall = null;
     
     // 1. 直接从 message.tool_calls 获取
-    if (body?.message?.tool_calls?.[0]) {
+    if (Array.isArray(body?.message?.tool_calls) && body.message.tool_calls.length > 0) {
+      console.log('Found tool call in message.tool_calls');
       toolCall = body.message.tool_calls[0];
     }
-    // 2. 从 message.tool_with_tool_call_list 获取
-    else if (body?.message?.tool_with_tool_call_list?.[0]?.tool_call) {
-      toolCall = body.message.tool_with_tool_call_list[0].tool_call;
+    // 2. 从 message.tool_call_list 获取
+    else if (Array.isArray(body?.message?.tool_call_list) && body.message.tool_call_list.length > 0) {
+      console.log('Found tool call in message.tool_call_list');
+      toolCall = body.message.tool_call_list[0];
     }
-    // 3. 从 artifact.messages 获取最后一个 tool_calls
-    else if (body?.message?.artifact?.messages) {
-      const messages = body.message.artifact.messages;
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].tool_calls?.[0]) {
-          toolCall = messages[i].tool_calls[0];
-          break;
-        }
-      }
+    // 3. 从 message.tool_with_tool_call_list 获取
+    else if (Array.isArray(body?.message?.tool_with_tool_call_list) && 
+             body.message.tool_with_tool_call_list.length > 0 && 
+             body.message.tool_with_tool_call_list[0].tool_call) {
+      console.log('Found tool call in message.tool_with_tool_call_list');
+      toolCall = body.message.tool_with_tool_call_list[0].tool_call;
     }
 
     if (!toolCall) {
+      console.log('Body structure:', JSON.stringify({
+        has_message: !!body?.message,
+        message_type: body?.message?.type,
+        has_tool_calls: !!body?.message?.tool_calls,
+        tool_calls_length: body?.message?.tool_calls?.length,
+        has_tool_call_list: !!body?.message?.tool_call_list,
+        has_tool_with_tool_call_list: !!body?.message?.tool_with_tool_call_list,
+      }, null, 2));
+      
       console.error('Tool call not found in body');
       throw new Error('No tool call found');
     }
+
+    console.log('Using tool call:', toolCall);
 
     const toolCallId = toolCall.id;
     
@@ -351,6 +361,7 @@ export async function POST(request: Request) {
     try {
       const args = toolCall.function.arguments;
       params = typeof args === 'string' ? JSON.parse(args) : args;
+      console.log('Parsed parameters:', params);
     } catch (e) {
       console.error('Error parsing arguments:', e);
       params = {};
