@@ -302,52 +302,87 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const toolCallId = searchParams.get('tool_call_id');
-  const query = searchParams.get('query') || '';
-  const location = searchParams.get('location') || '';
-  const company = searchParams.get('company') || '';
-  const diversity = searchParams.get('diversity') || '';
+  try {
+    const body = await request.json();
+    const message = body.message;
+    
+    const toolCall = message?.tool_calls?.[0];
+    if (!toolCall) {
+      throw new Error('No tool call found');
+    }
 
-  let results = mockJobs;
+    const toolCallId = toolCall.id;
+    
+    const args = JSON.parse(toolCall.function.arguments);
+    const query = args.query || '';
+    const location = args.location || '';
+    const company = args.company || '';
+    const diversity = args.diversity || '';
 
-  if (query) {
-    const searchQuery = query.toLowerCase();
-    results = results.filter(job =>
-      job.title.toLowerCase().includes(searchQuery) ||
-      job.description.toLowerCase().includes(searchQuery)
+    let results = mockJobs;
+
+    if (query) {
+      const searchQuery = query.toLowerCase();
+      results = results.filter(job =>
+        job.title.toLowerCase().includes(searchQuery) ||
+        job.description.toLowerCase().includes(searchQuery)
+      );
+    }
+
+    if (location) {
+      results = results.filter(job =>
+        job.location.toLowerCase().includes(location.toLowerCase())
+      );
+    }
+
+    if (company) {
+      results = results.filter(job =>
+        job.company.toLowerCase().includes(company.toLowerCase())
+      );
+    }
+
+    if (diversity) {
+      results = results.filter(job =>
+        job.diversity_types.some(type => 
+          type.toLowerCase().includes(diversity.toLowerCase())
+        )
+      );
+    }
+
+    // 只取前3个结果
+    const limitedResults = results.slice(0, 3);
+
+    // 将结果转换为自然语言
+    let naturalResponse = `I found ${results.length} matching positions. Here are the details:\n\n`;
+
+    limitedResults.forEach((job, index) => {
+      naturalResponse += `${index + 1}. At ${job.company}, there's an opening for a ${job.title} position in ${job.location}. ` +
+        `This role involves ${job.description} The salary range is ${job.salary}. ` +
+        `The company offers a ${job.company_culture} and benefits include ${job.benefits.join(', ')}. ` +
+        `They actively support diversity initiatives for ${job.diversity_types.join(', ')}.\n\n`;
+    });
+
+    if (results.length > 3) {
+      naturalResponse += `There are ${results.length - 3} more positions available. Would you like to know more about any specific position?`;
+    }
+
+    return NextResponse.json({
+      results: [
+        {
+          toolCallId: toolCallId,
+          result: JSON.stringify({
+            total: results.length,
+            response: naturalResponse
+          })
+        }
+      ]
+    });
+
+  } catch (error) {
+    console.error('Error processing request:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
     );
   }
-
-  if (location) {
-    results = results.filter(job =>
-      job.location.toLowerCase().includes(location.toLowerCase())
-    );
-  }
-
-  if (company) {
-    results = results.filter(job =>
-      job.company.toLowerCase().includes(company.toLowerCase())
-    );
-  }
-
-  if (diversity) {
-    results = results.filter(job =>
-      job.diversity_types.some(type => 
-        type.toLowerCase().includes(diversity.toLowerCase())
-      )
-    );
-  }
-
-  return NextResponse.json({
-    results: [
-      {
-        toolCallId: toolCallId || "call_123",
-        result: JSON.stringify({
-          total: results.length,
-          jobs: results
-        })
-      }
-    ]
-  });
 }
