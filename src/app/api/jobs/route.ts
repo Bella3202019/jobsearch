@@ -304,79 +304,60 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Received request body type:', body?.message?.type);
-    
-    // 检查消息类型
-    const messageType = body?.message?.type;
-    
+    console.log('Received request type:', body?.message?.type);
+
     // 处理状态更新和通话结束报告
-    if (messageType === 'status-update' || messageType === 'end-of-call-report') {
+    if (body?.message?.type === 'status-update' || body?.message?.type === 'end-of-call-report') {
       return NextResponse.json({
         status: 'ok',
-        message: `${messageType} received`
+        message: `${body.message.type} received`
       });
     }
 
-    // 只从 message.tool_calls 获取
-    let toolCall = null;
-    if (Array.isArray(body?.message?.tool_calls) && body.message.tool_calls.length > 0) {
-      console.log('Found tool call in message.tool_calls');
-      toolCall = body.message.tool_calls[0];
-    }
-
+    // 检查 tool_calls 数组
+    const toolCall = body?.message?.tool_calls?.[0];
     if (!toolCall) {
-      console.error('Tool call not found in message.tool_calls');
+      console.error('No tool call found in message.tool_calls');
       throw new Error('No tool call found in message.tool_calls');
     }
 
-    console.log('Using tool call:', toolCall);
+    // 获取参数
+    const args = toolCall.function.arguments;
+    console.log('Raw arguments:', typeof args, args);
 
-    const toolCallId = toolCall.id;
-    
-    // 处理 arguments
+    // 解析参数
     let params;
     try {
-      const args = toolCall.function.arguments;
-      // 如果 args 已经是对象，直接使用
-      params = typeof args === 'object' ? args : JSON.parse(args);
+      // 如果 args 是字符串，则解析它
+      if (typeof args === 'string') {
+        params = JSON.parse(args);
+      } else if (typeof args === 'object') {
+        // 如果已经是对象，直接使用
+        params = args;
+      } else {
+        throw new Error('Invalid arguments format');
+      }
       console.log('Parsed parameters:', params);
     } catch (e) {
       console.error('Error parsing arguments:', e);
-      params = {};
+      throw new Error('Failed to parse arguments');
     }
 
-    const query = params.query || '';
-    const location = params.location || '';
-    const company = params.company || '';
-    const diversity = params.diversity || '';
-
     let results = mockJobs;
-
-    if (query) {
-      const searchQuery = query.toLowerCase();
+    
+    // 使用 query 参数进行搜索
+    if (params.query) {
+      const searchQuery = params.query.toLowerCase();
       results = results.filter(job =>
         job.title.toLowerCase().includes(searchQuery) ||
         job.description.toLowerCase().includes(searchQuery)
       );
     }
 
-    if (location) {
+    // 使用其他可选参数进行过滤
+    if (params.location && params.location.trim() !== '') {
       results = results.filter(job =>
-        job.location.toLowerCase().includes(location.toLowerCase())
-      );
-    }
-
-    if (company) {
-      results = results.filter(job =>
-        job.company.toLowerCase().includes(company.toLowerCase())
-      );
-    }
-
-    if (diversity) {
-      results = results.filter(job =>
-        job.diversity_types.some(type => 
-          type.toLowerCase().includes(diversity.toLowerCase())
-        )
+        job.location.toLowerCase().includes(params.location.toLowerCase())
       );
     }
 
@@ -386,7 +367,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       results: [
         {
-          toolCallId: toolCallId,
+          toolCallId: toolCall.id,
           result: JSON.stringify({
             total: results.length,
             jobs: limitedResults
