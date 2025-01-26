@@ -321,6 +321,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Check Content-Type header
+    const contentType = request.headers.get('content-type');
+    console.log('Content-Type:', contentType);
+
+    if (!contentType || !contentType.includes('application/json')) {
+      console.log('Invalid Content-Type:', contentType);
+      return NextResponse.json(
+        { 
+          error: 'Invalid Content-Type', 
+          details: 'Content-Type must be application/json' 
+        },
+        { status: 415 }
+      );
+    }
+
     const body = await request.json();
     console.log('=== Request received ===');
     console.log('Message type:', body?.message?.type);
@@ -331,12 +346,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'skipped' });
     }
 
-    console.log('Type of tool_calls:', typeof body?.message?.tool_calls);
-    console.log('Is Array?:', Array.isArray(body?.message?.tool_calls));
-    
-    if (!Array.isArray(body?.message?.tool_calls)) {
+    // Log the full structure
+    console.log('Message structure:', {
+      type: typeof body?.message,
+      hasToolCalls: 'tool_calls' in (body?.message || {}),
+      toolCallsType: typeof body?.message?.tool_calls,
+      toolCallsValue: body?.message?.tool_calls
+    });
+
+    // Check if tool_calls exists and is an array
+    if (!body?.message?.tool_calls) {
+      console.log('Error: tool_calls is missing or null');
+      return NextResponse.json(
+        { error: 'Invalid request format', details: 'tool_calls is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!Array.isArray(body.message.tool_calls)) {
       console.log('Error: tool_calls is not an array');
-      console.log('Value of tool_calls:', body?.message?.tool_calls);
+      console.log('Value of tool_calls:', body.message.tool_calls);
       return NextResponse.json(
         { error: 'Invalid request format', details: 'tool_calls must be an array' },
         { status: 400 }
