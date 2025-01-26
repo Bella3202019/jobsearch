@@ -304,85 +304,78 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log('Received request body type:', body?.message?.type);
     
-    // 详细检查 message type
-    console.log('=== Message Type Debug ===');
-    console.log('body?.message?.type:', body?.message?.type);
-    console.log('typeof body?.message?.type:', typeof body?.message?.type);
-    console.log('body?.message?.type === "tool-calls":', body?.message?.type === 'tool-calls');
-    console.log('=== End Message Type Debug ===');
-
+    // 检查消息类型
+    const messageType = body?.message?.type;
+    
     // 处理状态更新和通话结束报告
-    if (body?.message?.type === 'status-update' || body?.message?.type === 'end-of-call-report') {
-      console.log('Handling status update or end of call report');
+    if (messageType === 'status-update' || messageType === 'end-of-call-report') {
       return NextResponse.json({
         status: 'ok',
-        message: `${body.message.type} received`
+        message: `${messageType} received`
       });
     }
 
-    // 只处理 tool-calls 类型的消息
-    if (body?.message?.type !== 'tool-calls') {
-      console.log('Message type mismatch:');
-      console.log('Expected: "tool-calls"');
-      console.log('Received:', body?.message?.type);
-      throw new Error(`Unsupported message type: ${body?.message?.type}`);
+    // 只从 message.tool_calls 获取
+    let toolCall = null;
+    if (Array.isArray(body?.message?.tool_calls) && body.message.tool_calls.length > 0) {
+      console.log('Found tool call in message.tool_calls');
+      toolCall = body.message.tool_calls[0];
     }
 
-    // 检查 tool_calls 数组
-    if (!Array.isArray(body?.message?.tool_calls) || body.message.tool_calls.length === 0) {
-      console.log('Invalid tool_calls structure:', body?.message?.tool_calls);
-      throw new Error('Invalid or empty tool_calls array');
-    }
-
-    // 获取工具调用参数
-    const toolCall = body.message.tool_calls[0].function;
     if (!toolCall) {
-      console.error('No function found in tool call:', body.message.tool_calls[0]);
-      throw new Error('No function found in tool call');
+      console.error('Tool call not found in message.tool_calls');
+      throw new Error('No tool call found in message.tool_calls');
     }
 
-    // 获取参数
-    const args = toolCall.arguments;
-    console.log('Raw arguments:', typeof args, args);
+    console.log('Using tool call:', toolCall);
 
-    // 解析参数
+    const toolCallId = toolCall.id;
+    
+    // 处理 arguments
     let params;
     try {
+      const args = toolCall.function.arguments;
+      // 如果 args 已经是对象，直接使用
       params = typeof args === 'object' ? args : JSON.parse(args);
       console.log('Parsed parameters:', params);
     } catch (e) {
       console.error('Error parsing arguments:', e);
-      throw new Error('Failed to parse arguments');
+      params = {};
     }
+
+    const query = params.query || '';
+    const location = params.location || '';
+    const company = params.company || '';
+    const diversity = params.diversity || '';
 
     let results = mockJobs;
-    console.log('Initial results count:', results.length);
-    
-    // 使用 query 参数进行搜索
-    const searchQuery = params.query.toLowerCase();
-    results = results.filter(job =>
-      job.title.toLowerCase().includes(searchQuery) ||
-      job.description.toLowerCase().includes(searchQuery)
-    );
 
-    // 使用其他可选参数进行过滤
-    if (params.location && params.location.trim() !== '') {
+    if (query) {
+      const searchQuery = query.toLowerCase();
       results = results.filter(job =>
-        job.location.toLowerCase().includes(params.location.toLowerCase())
+        job.title.toLowerCase().includes(searchQuery) ||
+        job.description.toLowerCase().includes(searchQuery)
       );
     }
 
-    if (params.company && params.company.trim() !== '') {
+    if (location) {
       results = results.filter(job =>
-        job.company.toLowerCase().includes(params.company.toLowerCase())
+        job.location.toLowerCase().includes(location.toLowerCase())
       );
     }
 
-    if (params.diversity && params.diversity.trim() !== '') {
+    if (company) {
+      results = results.filter(job =>
+        job.company.toLowerCase().includes(company.toLowerCase())
+      );
+    }
+
+    if (diversity) {
       results = results.filter(job =>
         job.diversity_types.some(type => 
-          type.toLowerCase().includes(params.diversity.toLowerCase())
+          type.toLowerCase().includes(diversity.toLowerCase())
         )
       );
     }
@@ -393,7 +386,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       results: [
         {
-          toolCallId: body.message.tool_calls[0].id,
+          toolCallId: toolCallId,
           result: JSON.stringify({
             total: results.length,
             jobs: limitedResults
