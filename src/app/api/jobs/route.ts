@@ -323,13 +323,15 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     console.log('=== Request received ===');
-    console.log('Full request body:', JSON.stringify(body?.message, null, 2));
     
     // Only process 'tool-calls' type messages
     if (body?.message?.type !== 'tool-calls') {
       console.log('Skipping non-tool-calls message type:', body?.message?.type);
       return NextResponse.json({ status: 'skipped' });
     }
+
+    // Only log full body for tool-calls type
+    console.log('Full request body:', JSON.stringify(body?.message, null, 2));
 
     // Get tool calls from the correct property
     const toolCalls = body?.message?.tool_calls || 
