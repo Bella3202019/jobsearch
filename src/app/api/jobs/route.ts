@@ -323,11 +323,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     console.log('=== Request received ===');
-    console.log('Tool calls:', body?.message?.tool_calls);
+    console.log('Request body:', JSON.stringify(body, null, 2));
+    console.log('Type of body:', typeof body);
+    console.log('Type of message:', typeof body?.message);
+    console.log('Type of tool_calls:', typeof body?.message?.tool_calls);
+    console.log('Is Array?:', Array.isArray(body?.message?.tool_calls));
     
     // 检查 tool_calls 数组
     if (!Array.isArray(body?.message?.tool_calls)) {
       console.log('Error: tool_calls is not an array');
+      console.log('Value of tool_calls:', body?.message?.tool_calls);
       return NextResponse.json(
         { error: 'Invalid request format', details: 'tool_calls must be an array' },
         { status: 400 }
