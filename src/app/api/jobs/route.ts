@@ -323,8 +323,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     console.log('=== Request Debug ===');
-    console.log('Message type:', body?.message?.type);
-    console.log('Tool calls:', JSON.stringify(body?.message?.tool_calls, null, 2));
+    console.log('Body:', JSON.stringify(body, null, 2));
+    console.log('Message:', body?.message);
+    console.log('Tool calls:', body?.message?.tool_calls);
+    console.log('Tool calls type:', typeof body?.message?.tool_calls);
+    console.log('Is array:', Array.isArray(body?.message?.tool_calls));
 
     if (!Array.isArray(body?.message?.tool_calls) || body.message.tool_calls.length === 0) {
       throw new Error('Invalid tool_calls array');
