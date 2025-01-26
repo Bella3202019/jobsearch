@@ -307,50 +307,68 @@ export async function POST(request: Request) {
     console.log('=== Request Debug ===');
     console.log('Message type:', body?.message?.type);
     console.log('Tool calls:', JSON.stringify(body?.message?.tool_calls, null, 2));
-    console.log('=== End Request Debug ===');
 
     // 检查 tool_calls 数组
     if (!Array.isArray(body?.message?.tool_calls) || body.message.tool_calls.length === 0) {
-      console.error('Invalid tool_calls array:', body?.message?.tool_calls);
       throw new Error('Invalid tool_calls array');
     }
 
-    const toolCall = body.message.tool_calls[0];
-    const params = toolCall.function.arguments;
-    console.log('Parameters:', params);
+    // 处理所有的 tool calls
+    const results = body.message.tool_calls.map(toolCall => {
+      // 获取参数（处理字符串或对象格式）
+      const args = toolCall.function.arguments;
+      const params = typeof args === 'string' ? JSON.parse(args) : args;
+      
+      // 确保必需的 query 参数存在
+      if (!params.query) {
+        throw new Error('Query parameter is required');
+      }
 
-    let results = mockJobs;
-    
-    // 使用 query 参数进行搜索
-    if (params.query) {
+      let jobResults = mockJobs;
+      
+      // 使用 query 参数进行搜索（必需）
       const searchQuery = params.query.toLowerCase();
-      results = results.filter(job =>
+      jobResults = jobResults.filter(job =>
         job.title.toLowerCase().includes(searchQuery) ||
         job.description.toLowerCase().includes(searchQuery)
       );
-    }
 
-    // 使用其他可选参数进行过滤
-    if (params.location && params.location.trim() !== '') {
-      results = results.filter(job =>
-        job.location.toLowerCase().includes(params.location.toLowerCase())
-      );
-    }
+      // 使用可选的 location 参数进行过滤
+      if (params.location?.trim()) {
+        jobResults = jobResults.filter(job =>
+          job.location.toLowerCase().includes(params.location.toLowerCase())
+        );
+      }
 
-    // 只取前3个结果
-    const limitedResults = results.slice(0, 3);
+      // 使用可选的 company 参数进行过滤
+      if (params.company?.trim()) {
+        jobResults = jobResults.filter(job =>
+          job.company.toLowerCase().includes(params.company.toLowerCase())
+        );
+      }
 
-    return NextResponse.json({
-      results: [
-        {
-          toolCallId: toolCall.id,
-          result: JSON.stringify({
-            total: results.length,
-            jobs: limitedResults
-          })
-        }
-      ]
+      // 使用可选的 diversity 参数进行过滤
+      if (params.diversity?.trim()) {
+        jobResults = jobResults.filter(job =>
+          job.diversity_types.some(type => 
+            type.toLowerCase().includes(params.diversity.toLowerCase())
+          )
+        );
+      }
+
+      // 只取前3个结果
+      const limitedResults = jobResults.slice(0, 3);
+
+      return {
+        toolCallId: toolCall.id,
+        result: JSON.stringify({
+          total: jobResults.length,
+          jobs: limitedResults
+        })
+      };
     });
+
+    return NextResponse.json({ results });
 
   } catch (error: unknown) {
     console.error('Error processing request:', error);
