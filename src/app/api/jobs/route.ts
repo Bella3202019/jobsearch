@@ -304,10 +304,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Received request type:', body?.message?.type);
+    
+    // 详细检查 message type
+    console.log('=== Message Type Debug ===');
+    console.log('body?.message?.type:', body?.message?.type);
+    console.log('typeof body?.message?.type:', typeof body?.message?.type);
+    console.log('body?.message?.type === "tool-calls":', body?.message?.type === 'tool-calls');
+    console.log('=== End Message Type Debug ===');
 
     // 处理状态更新和通话结束报告
     if (body?.message?.type === 'status-update' || body?.message?.type === 'end-of-call-report') {
+      console.log('Handling status update or end of call report');
       return NextResponse.json({
         status: 'ok',
         message: `${body.message.type} received`
@@ -316,14 +323,23 @@ export async function POST(request: Request) {
 
     // 只处理 tool-calls 类型的消息
     if (body?.message?.type !== 'tool-calls') {
+      console.log('Message type mismatch:');
+      console.log('Expected: "tool-calls"');
+      console.log('Received:', body?.message?.type);
       throw new Error(`Unsupported message type: ${body?.message?.type}`);
     }
 
+    // 检查 tool_calls 数组
+    if (!Array.isArray(body?.message?.tool_calls) || body.message.tool_calls.length === 0) {
+      console.log('Invalid tool_calls structure:', body?.message?.tool_calls);
+      throw new Error('Invalid or empty tool_calls array');
+    }
+
     // 获取工具调用参数
-    const toolCall = body?.message?.tool_calls?.[0]?.function;
+    const toolCall = body.message.tool_calls[0].function;
     if (!toolCall) {
-      console.error('No tool call found');
-      throw new Error('No tool call found');
+      console.error('No function found in tool call:', body.message.tool_calls[0]);
+      throw new Error('No function found in tool call');
     }
 
     // 获取参数
