@@ -351,7 +351,7 @@ export async function POST(request: Request) {
       type: typeof body?.message,
       hasToolCalls: 'tool_calls' in (body?.message || {}),
       toolCallsType: typeof body?.message?.tool_calls,
-      toolCallsValue: body?.message?.tool_calls
+      toolCallsValue: JSON.stringify(body?.message?.tool_calls)
     });
 
     // Check if tool_calls exists and is an array
@@ -365,7 +365,7 @@ export async function POST(request: Request) {
 
     if (!Array.isArray(body.message.tool_calls)) {
       console.log('Error: tool_calls is not an array');
-      console.log('Value of tool_calls:', body.message.tool_calls);
+      console.log('Value of tool_calls:', JSON.stringify(body.message.tool_calls));
       return NextResponse.json(
         { error: 'Invalid request format', details: 'tool_calls must be an array' },
         { status: 400 }
