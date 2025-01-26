@@ -258,6 +258,24 @@ const mockJobs = [
     }
    ]
 
+// 定义接口
+interface ToolCallFunction {
+  name: string;
+  arguments: string | {
+    query: string;
+    location?: string;
+    company?: string;
+    diversity?: string;
+  };
+}
+
+interface ToolCall {
+  id: string;
+  type: string;
+  function: ToolCallFunction;
+  is_preceded_by_text?: boolean;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('query') || '';
@@ -308,46 +326,38 @@ export async function POST(request: Request) {
     console.log('Message type:', body?.message?.type);
     console.log('Tool calls:', JSON.stringify(body?.message?.tool_calls, null, 2));
 
-    // 检查 tool_calls 数组
     if (!Array.isArray(body?.message?.tool_calls) || body.message.tool_calls.length === 0) {
       throw new Error('Invalid tool_calls array');
     }
 
-    // 处理所有的 tool calls
-    const results = body.message.tool_calls.map(toolCall => {
-      // 获取参数（处理字符串或对象格式）
+    const results = body.message.tool_calls.map((toolCall: ToolCall) => {
       const args = toolCall.function.arguments;
       const params = typeof args === 'string' ? JSON.parse(args) : args;
       
-      // 确保必需的 query 参数存在
       if (!params.query) {
         throw new Error('Query parameter is required');
       }
 
       let jobResults = mockJobs;
       
-      // 使用 query 参数进行搜索（必需）
       const searchQuery = params.query.toLowerCase();
       jobResults = jobResults.filter(job =>
         job.title.toLowerCase().includes(searchQuery) ||
         job.description.toLowerCase().includes(searchQuery)
       );
 
-      // 使用可选的 location 参数进行过滤
       if (params.location?.trim()) {
         jobResults = jobResults.filter(job =>
           job.location.toLowerCase().includes(params.location.toLowerCase())
         );
       }
 
-      // 使用可选的 company 参数进行过滤
       if (params.company?.trim()) {
         jobResults = jobResults.filter(job =>
           job.company.toLowerCase().includes(params.company.toLowerCase())
         );
       }
 
-      // 使用可选的 diversity 参数进行过滤
       if (params.diversity?.trim()) {
         jobResults = jobResults.filter(job =>
           job.diversity_types.some(type => 
@@ -356,7 +366,6 @@ export async function POST(request: Request) {
         );
       }
 
-      // 只取前3个结果
       const limitedResults = jobResults.slice(0, 3);
 
       return {
