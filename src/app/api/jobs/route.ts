@@ -304,49 +304,83 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Received request body:', JSON.stringify(body, null, 2));
+    console.log('Received request type:', body?.message?.type);
 
     // 直接从 message.tool_calls[0].function.arguments 获取参数
-    const args = body?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) {
-      throw new Error('No arguments found in request');
+    const toolCall = body?.message?.tool_calls?.[0]?.function;
+    if (!toolCall) {
+      console.error('No tool call found[0]');
+      throw new Error('No tool call found[0]');
     }
 
-    console.log('Raw arguments:', args);
-    
+    // 获取参数
+    const args = toolCall.arguments;
+    console.log('Raw arguments:', typeof args, args);
+
     // 解析参数
     let params;
     try {
-      params = typeof args === 'object' ? args : JSON.parse(args);
+      // 如果 args 是字符串，则解析它
+      if (typeof args === 'string') {
+        params = JSON.parse(args);
+      } else if (typeof args === 'object') {
+        // 如果已经是对象，直接使用
+        params = args;
+      } else {
+        throw new Error('Invalid arguments format');
+      }
       console.log('Parsed parameters:', params);
     } catch (e) {
       console.error('Error parsing arguments:', e);
       throw new Error('Failed to parse arguments');
     }
 
-    // 确保至少有 query 参数
-    if (!params.query) {
-      throw new Error('Query parameter is required');
-    }
-
     let results = mockJobs;
+    console.log('Initial results count:', results.length);
     
     // 使用 query 参数进行搜索（必需）
     const searchQuery = params.query.toLowerCase();
+    console.log('Searching for query:', searchQuery);
     results = results.filter(job =>
       job.title.toLowerCase().includes(searchQuery) ||
       job.description.toLowerCase().includes(searchQuery)
     );
+    console.log('Results after query filter:', results.length);
 
     // 使用其他可选参数进行过滤
-    if (params.location) {
+    if (params.location && params.location.trim() !== '') {
+      console.log('Filtering by location:', params.location);
       results = results.filter(job =>
         job.location.toLowerCase().includes(params.location.toLowerCase())
       );
+      console.log('Results after location filter:', results.length);
+    } else {
+      console.log('Skipping location filter as location is empty');
+    }
+
+    // 添加 company 过滤
+    if (params.company && params.company.trim() !== '') {
+      console.log('Filtering by company:', params.company);
+      results = results.filter(job =>
+        job.company.toLowerCase().includes(params.company.toLowerCase())
+      );
+      console.log('Results after company filter:', results.length);
+    }
+
+    // 添加 diversity 过滤
+    if (params.diversity && params.diversity.trim() !== '') {
+      console.log('Filtering by diversity:', params.diversity);
+      results = results.filter(job =>
+        job.diversity_types.some(type => 
+          type.toLowerCase().includes(params.diversity.toLowerCase())
+        )
+      );
+      console.log('Results after diversity filter:', results.length);
     }
 
     // 只取前3个结果
     const limitedResults = results.slice(0, 3);
+    console.log('Final limited results:', limitedResults);
 
     return NextResponse.json({
       results: [
