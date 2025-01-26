@@ -322,18 +322,25 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('=== Request Debug ===');
-    console.log('Body:', JSON.stringify(body, null, 2));
-    console.log('Message:', body?.message);
-    console.log('Tool calls:', body?.message?.tool_calls);
-    console.log('Tool calls type:', typeof body?.message?.tool_calls);
-    console.log('Is array:', Array.isArray(body?.message?.tool_calls));
-
-    if (!Array.isArray(body?.message?.tool_calls) || body.message.tool_calls.length === 0) {
-      throw new Error('Invalid tool_calls array');
+    
+    // Handle tool calls from the message
+    const toolCalls = body?.message?.tool_calls;
+    
+    // If there are no tool calls but there's a type field, it's likely an analysis report
+    // We can return an empty success response
+    if (!toolCalls && body?.type === 'end-of-call-report') {
+      return NextResponse.json({ status: 'success' });
     }
 
-    const results = body.message.tool_calls.map((toolCall: ToolCall) => {
+    // Validate tool calls array
+    if (!Array.isArray(toolCalls)) {
+      return NextResponse.json(
+        { error: 'Invalid request format', details: 'tool_calls must be an array' },
+        { status: 400 }
+      );
+    }
+
+    const results = toolCalls.map((toolCall: ToolCall) => {
       const args = toolCall.function.arguments;
       const params = typeof args === 'string' ? JSON.parse(args) : args;
       
