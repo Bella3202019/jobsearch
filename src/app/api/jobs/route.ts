@@ -304,44 +304,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Received request type:', body?.message?.type);
-
-    // 处理状态更新和通话结束报告
-    if (body?.message?.type === 'status-update' || body?.message?.type === 'end-of-call-report') {
-      return NextResponse.json({
-        status: 'ok',
-        message: `${body.message.type} received`
-      });
-    }
+    console.log('=== Request Debug ===');
+    console.log('Message type:', body?.message?.type);
+    console.log('Tool calls:', JSON.stringify(body?.message?.tool_calls, null, 2));
+    console.log('=== End Request Debug ===');
 
     // 检查 tool_calls 数组
-    const toolCall = body?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      console.error('No tool call found in message.tool_calls');
-      throw new Error('No tool call found in message.tool_calls');
+    if (!Array.isArray(body?.message?.tool_calls) || body.message.tool_calls.length === 0) {
+      console.error('Invalid tool_calls array:', body?.message?.tool_calls);
+      throw new Error('Invalid tool_calls array');
     }
 
-    // 获取参数
-    const args = toolCall.function.arguments;
-    console.log('Raw arguments:', typeof args, args);
-
-    // 解析参数
-    let params;
-    try {
-      // 如果 args 是字符串，则解析它
-      if (typeof args === 'string') {
-        params = JSON.parse(args);
-      } else if (typeof args === 'object') {
-        // 如果已经是对象，直接使用
-        params = args;
-      } else {
-        throw new Error('Invalid arguments format');
-      }
-      console.log('Parsed parameters:', params);
-    } catch (e) {
-      console.error('Error parsing arguments:', e);
-      throw new Error('Failed to parse arguments');
-    }
+    const toolCall = body.message.tool_calls[0];
+    const params = toolCall.function.arguments;
+    console.log('Parameters:', params);
 
     let results = mockJobs;
     
@@ -378,16 +354,11 @@ export async function POST(request: Request) {
 
   } catch (error: unknown) {
     console.error('Error processing request:', error);
-    
     const errorMessage = error instanceof Error 
       ? error.message 
       : 'Unknown error occurred';
-
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: errorMessage 
-      },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }
