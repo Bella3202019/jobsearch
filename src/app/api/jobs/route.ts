@@ -321,24 +321,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    // Check Content-Type header
-    const contentType = request.headers.get('content-type');
-    console.log('Content-Type:', contentType);
-
-    if (!contentType || !contentType.includes('application/json')) {
-      console.log('Invalid Content-Type:', contentType);
-      return NextResponse.json(
-        { 
-          error: 'Invalid Content-Type', 
-          details: 'Content-Type must be application/json' 
-        },
-        { status: 415 }
-      );
-    }
-
     const body = await request.json();
     console.log('=== Request received ===');
-    console.log('Message type:', body?.message?.type);
+    console.log('Full request body:', JSON.stringify(body?.message, null, 2));
     
     // Only process 'tool-calls' type messages
     if (body?.message?.type !== 'tool-calls') {
@@ -346,35 +331,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'skipped' });
     }
 
-    // Log the full structure
-    console.log('Message structure:', {
-      type: typeof body?.message,
-      hasToolCalls: 'tool_calls' in (body?.message || {}),
-      toolCallsType: typeof body?.message?.tool_calls,
-      toolCallsValue: JSON.stringify(body?.message?.tool_calls)
-    });
+    // Get tool calls from the correct property
+    const toolCalls = body?.message?.tool_calls || 
+                     body?.message?.tool_call_list || 
+                     [];
 
-    // Check if tool_calls exists and is an array
-    if (!body?.message?.tool_calls) {
-      console.log('Error: tool_calls is missing or null');
+    console.log('Tool calls:', JSON.stringify(toolCalls, null, 2));
+
+    if (!Array.isArray(toolCalls) || toolCalls.length === 0) {
+      console.log('Error: No valid tool calls found');
       return NextResponse.json(
-        { error: 'Invalid request format', details: 'tool_calls is required' },
+        { error: 'Invalid request format', details: 'No valid tool calls found' },
         { status: 400 }
       );
     }
 
-    if (!Array.isArray(body.message.tool_calls)) {
-      console.log('Error: tool_calls is not an array');
-      console.log('Value of tool_calls:', JSON.stringify(body.message.tool_calls));
-      return NextResponse.json(
-        { error: 'Invalid request format', details: 'tool_calls must be an array' },
-        { status: 400 }
-      );
-    }
-
-    const results = body.message.tool_calls.map((toolCall: ToolCall) => {
-      console.log('=== Processing tool call ===');
-      console.log('Tool call ID:', toolCall.id);
+    const results = toolCalls.map((toolCall: ToolCall) => {
+      console.log('Processing tool call:', toolCall.id);
       console.log('Search parameters:', toolCall.function.arguments);
       
       // Parse arguments if it's a string
