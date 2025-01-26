@@ -274,6 +274,7 @@ interface ToolCall {
   type: string;
   function: ToolCallFunction;
   is_preceded_by_text?: boolean;
+  isPrecededByText?: boolean;
 }
 
 export async function GET(request: Request) {
@@ -333,9 +334,11 @@ export async function POST(request: Request) {
     // Only log full body for tool-calls type
     console.log('Full request body:', JSON.stringify(body?.message, null, 2));
 
-    // Get tool calls from the correct property
+    // Get tool calls from the correct property, handling both camelCase and snake_case
     const toolCalls = body?.message?.tool_calls || 
+                     body?.message?.toolCalls ||
                      body?.message?.tool_call_list || 
+                     body?.message?.toolCallList ||
                      [];
 
     console.log('Tool calls:', JSON.stringify(toolCalls, null, 2));
