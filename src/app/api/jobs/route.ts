@@ -322,61 +322,72 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log('=== Request received ===');
+    console.log('Tool calls:', body?.message?.tool_calls);
     
-    // Handle tool calls from the message
-    const toolCalls = body?.message?.tool_calls;
-    
-    // If there are no tool calls but there's a type field, it's likely an analysis report
-    // We can return an empty success response
-    if (!toolCalls && body?.type === 'end-of-call-report') {
-      return NextResponse.json({ status: 'success' });
-    }
-
-    // Validate tool calls array
-    if (!Array.isArray(toolCalls)) {
+    // 检查 tool_calls 数组
+    if (!Array.isArray(body?.message?.tool_calls)) {
+      console.log('Error: tool_calls is not an array');
       return NextResponse.json(
         { error: 'Invalid request format', details: 'tool_calls must be an array' },
         { status: 400 }
       );
     }
 
-    const results = toolCalls.map((toolCall: ToolCall) => {
-      const args = toolCall.function.arguments;
-      const params = typeof args === 'string' ? JSON.parse(args) : args;
+    const results = body.message.tool_calls.map((toolCall: ToolCall) => {
+      console.log('=== Processing tool call ===');
+      console.log('Tool call ID:', toolCall.id);
+      console.log('Search parameters:', toolCall.function.arguments);
       
-      if (!params.query) {
+      // Parse arguments if it's a string
+      const args = typeof toolCall.function.arguments === 'string' 
+        ? JSON.parse(toolCall.function.arguments)
+        : toolCall.function.arguments;
+
+      if (!args.query) {
+        console.log('Error: Query parameter is missing');
         throw new Error('Query parameter is required');
       }
 
       let jobResults = mockJobs;
       
-      const searchQuery = params.query.toLowerCase();
+      const searchQuery = args.query.toLowerCase();
+      console.log('Searching for:', searchQuery);
+      
       jobResults = jobResults.filter(job =>
         job.title.toLowerCase().includes(searchQuery) ||
         job.description.toLowerCase().includes(searchQuery)
       );
+      console.log('Found matches after query filter:', jobResults.length);
 
-      if (params.location?.trim()) {
+      if (args.location?.trim()) {
+        console.log('Filtering by location:', args.location);
         jobResults = jobResults.filter(job =>
-          job.location.toLowerCase().includes(params.location.toLowerCase())
+          job.location.toLowerCase().includes(args.location.toLowerCase())
         );
+        console.log('Matches after location filter:', jobResults.length);
       }
 
-      if (params.company?.trim()) {
+      if (args.company?.trim()) {
+        console.log('Filtering by company:', args.company);
         jobResults = jobResults.filter(job =>
-          job.company.toLowerCase().includes(params.company.toLowerCase())
+          job.company.toLowerCase().includes(args.company.toLowerCase())
         );
+        console.log('Matches after company filter:', jobResults.length);
       }
 
-      if (params.diversity?.trim()) {
+      if (args.diversity?.trim()) {
+        console.log('Filtering by diversity:', args.diversity);
         jobResults = jobResults.filter(job =>
           job.diversity_types.some(type => 
-            type.toLowerCase().includes(params.diversity.toLowerCase())
+            type.toLowerCase().includes(args.diversity.toLowerCase())
           )
         );
+        console.log('Matches after diversity filter:', jobResults.length);
       }
 
       const limitedResults = jobResults.slice(0, 3);
+      console.log('Final results count:', limitedResults.length);
 
       return {
         toolCallId: toolCall.id,
@@ -387,6 +398,7 @@ export async function POST(request: Request) {
       };
     });
 
+    console.log('=== Request completed ===');
     return NextResponse.json({ results });
 
   } catch (error: unknown) {
