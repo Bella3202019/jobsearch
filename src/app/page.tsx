@@ -16,6 +16,45 @@ interface Job {
   type: string;
 }
 
+// Add new component for voice assistant button
+const VoiceAssistantButton = () => {
+  const [isActive, setIsActive] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleClick = () => {
+    setIsActive(!isActive);
+    if (!isActive) {
+      setMessage('Connecting to career assistant...');
+      // Add Vapi client connection logic here
+    } else {
+      setMessage('');
+    }
+  };
+
+  return (
+    <>
+      {isActive && (
+        <div className={styles.voiceDialog}>
+          <div className={styles.voiceStatus}>
+            {message || 'Chat with your Career Assistant...'}
+          </div>
+          <div className={styles.voiceWaves}>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      )}
+      <button 
+        onClick={handleClick}
+        className={`${styles.voiceAssistant} ${isActive ? styles.active : ''}`}
+      >
+        {isActive ? 'End Call' : '📞  Career Assistant'}
+      </button>
+    </>
+  );
+};
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -189,6 +228,7 @@ export default function Home() {
           </div>
         )}
       </main>
+      <VoiceAssistantButton />
     </div>
   );
 }
